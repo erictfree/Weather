@@ -1,0 +1,192 @@
+{
+  "_comment": "What-to-wear data for the Character style. Each band is keyed by feels-like temperature (°F). Bands are checked low-to-high; use the first band whose max >= feels-like temp. Rain and wind variants are coarse overrides layered on top of the temp band's avatar, not a full second grid. Avatar priority, highest first: specialDays with trigger:\"date\" matching today > rain > wind > plain band avatar (rain is the more visually distinct condition; if it's windy AND rainy, still show the rain avatar and just add the wind text clause). specialDays with trigger:\"manual\" only show when explicitly invoked, never automatically.",
+
+  "units": "fahrenheit",
+
+  "bands": [
+    {
+      "id": "below-zero",
+      "label": "Below zero",
+      "tempMinF": null,
+      "tempMaxF": -1,
+      "tempRangeC": "below -18°C",
+      "outfit": "Heavyweight thermal base layers, thick fleece/wool mid-layer, expedition-style parka, insulated or snow pants, insulated waterproof winter boots, heavy gloves/mittens, warm hat, neck gaiter/balaclava; minimize exposed skin",
+      "avatar": "avatar-extreme-cold-below-zero.png",
+      "sharedAvatarWith": "extreme-cold"
+    },
+    {
+      "id": "extreme-cold",
+      "label": "Extreme cold",
+      "tempMinF": 0,
+      "tempMaxF": 9,
+      "tempRangeC": "-18 to -13°C",
+      "outfit": "Heavy thermal base layers, fleece/wool mid-layer, parka, insulated pants, insulated waterproof boots, warm hat, insulated gloves, scarf/neck gaiter",
+      "avatar": "avatar-extreme-cold-below-zero.png",
+      "sharedAvatarWith": "below-zero"
+    },
+    {
+      "id": "bitter-cold",
+      "label": "Bitter cold",
+      "tempMinF": 10,
+      "tempMaxF": 19,
+      "tempRangeC": "-12 to -7°C",
+      "outfit": "Thermal base layer, heavy insulated coat, insulated or lined pants, winter boots, beanie, gloves, scarf",
+      "avatar": "avatar-freezing-bitter-cold.png",
+      "sharedAvatarWith": "freezing"
+    },
+    {
+      "id": "freezing",
+      "label": "Freezing",
+      "tempMinF": 20,
+      "tempMaxF": 29,
+      "tempRangeC": "-7 to -2°C",
+      "outfit": "Thermal base layer, sweater/fleece, insulated coat, warm pants, boots, beanie, optional gloves",
+      "avatar": "avatar-freezing-bitter-cold.png",
+      "sharedAvatarWith": "bitter-cold"
+    },
+    {
+      "id": "very-cold",
+      "label": "Very cold",
+      "tempMinF": 30,
+      "tempMaxF": 39,
+      "tempRangeC": "-1 to 3°C",
+      "outfit": "Warm sweater/fleece, winter coat, long pants, boots, beanie, optional gloves",
+      "avatar": "avatar-very-cold.png"
+    },
+    {
+      "id": "cold",
+      "label": "Cold",
+      "tempMinF": 40,
+      "tempMaxF": 49,
+      "tempRangeC": "4 to 9°C",
+      "outfit": "Sweater/fleece, insulated jacket, long pants, boots or closed shoes",
+      "avatar": "avatar-cold.png"
+    },
+    {
+      "id": "chilly",
+      "label": "Chilly",
+      "tempMinF": 50,
+      "tempMaxF": 59,
+      "tempRangeC": "10 to 15°C",
+      "outfit": "Long-sleeve shirt or sweater, light/medium jacket, jeans, closed shoes",
+      "avatar": "avatar-chilly.png"
+    },
+    {
+      "id": "cool",
+      "label": "Cool",
+      "tempMinF": 60,
+      "tempMaxF": 69,
+      "tempRangeC": "16 to 20°C",
+      "outfit": "T-shirt + light jacket/hoodie, jeans/chinos, sneakers",
+      "avatar": "avatar-cool.png"
+    },
+    {
+      "id": "mild-warm",
+      "label": "Mild/Warm",
+      "tempMinF": 70,
+      "tempMaxF": 79,
+      "tempRangeC": "21 to 26°C",
+      "outfit": "T-shirt, jeans/chinos or shorts, sneakers; optional light overshirt",
+      "avatar": "avatar-mild-warm.png"
+    },
+    {
+      "id": "warm",
+      "label": "Warm",
+      "tempMinF": 80,
+      "tempMaxF": 89,
+      "tempRangeC": "27 to 31°C",
+      "outfit": "T-shirt or short-sleeve shirt, shorts or lightweight pants, sneakers, sunglasses",
+      "avatar": "avatar-warm.png"
+    },
+    {
+      "id": "hot",
+      "label": "Hot",
+      "tempMinF": 90,
+      "tempMaxF": 99,
+      "tempRangeC": "32 to 37°C",
+      "outfit": "Light T-shirt, shorts, sneakers or sandals, sunglasses, baseball cap, sunscreen",
+      "avatar": "avatar-hot.png"
+    },
+    {
+      "id": "extreme-heat",
+      "label": "Extreme heat",
+      "tempMinF": 100,
+      "tempMaxF": null,
+      "tempRangeC": "38°C+",
+      "outfit": "Very light T-shirt or tank, lightweight shorts, breathable running shoes or sandals, sunglasses, hat, sunscreen",
+      "avatar": "avatar-extreme-heat.png"
+    }
+  ],
+
+  "specialDays": [
+    {
+      "id": "retro-80s",
+      "label": "Anytime you feel like being 80s",
+      "outfit": "Doc Brown–style white lab coat, retro-futuristic glasses or mirrored goggles, graphic T-shirt or button-down underneath, dark pants, chunky sneakers or boots, optional wild hair and gadget-filled pockets",
+      "avatar": "avatar-retro-80s.png",
+      "trigger": "manual",
+      "note": "Easter egg / override, not tied to a temp band or date. Trigger manually (e.g. a button, a konami-code-style input) rather than automatically."
+    },
+    {
+      "id": "halloween",
+      "label": "Halloween",
+      "outfit": "Pirate costume — tricorn hat with skull and crossbones, eyepatch, ruffled shirt under a brass-buttoned coat, sash, cutlass, boots",
+      "avatar": "avatar-halloween.png",
+      "trigger": "date",
+      "triggerDate": "10-31",
+      "note": "Overrides everything else — temp band, rain, wind — on October 31st regardless of actual weather."
+    }
+  ],
+
+  "rainVariants": {
+    "_comment": "Coarse override: when precipitation is high, swap the band's avatar for the matching rain look instead of the plain one. Only two buckets (cold/warm) rather than one per band.",
+    "cold": {
+      "avatar": "avatar-cold-rain.png",
+      "appliesToBandIds": ["very-cold", "cold", "chilly", "cool"],
+      "status": "ready"
+    },
+    "warm": {
+      "avatar": "avatar-warm-rain.png",
+      "appliesToBandIds": ["mild-warm", "warm", "hot", "extreme-heat"],
+      "status": "ready"
+    }
+  },
+
+  "windVariants": {
+    "_comment": "Coarse override, same pattern as rainVariants: only used when it's windy AND not rainy (rain avatar takes priority — see top-level _comment). Two buckets, not one per band.",
+    "cold": {
+      "avatar": "avatar-cold-windy.png",
+      "appliesToBandIds": ["very-cold", "cold", "chilly", "cool"],
+      "status": "ready"
+    },
+    "warm": {
+      "avatar": "avatar-warm-windy.png",
+      "appliesToBandIds": ["mild-warm", "warm", "hot", "extreme-heat"],
+      "status": "ready"
+    }
+  },
+
+  "loading": {
+    "avatar": "avatar-mystery.png",
+    "note": "Shown the instant a weather lookup starts, before any data has come back. Referenced directly by app code as avatars/avatar-mystery.png rather than looked up from this file, since it must be usable before outfit-guide.json itself has finished loading."
+  },
+
+  "unused": [
+    {
+      "avatar": "avatar-warm-alt-spare.png",
+      "note": "Spare cap+tee+shorts+sneakers look, near-duplicate of warm/hot. Not wired into any band."
+    },
+    {
+      "avatar": "avatar-cool-alt-spare.png",
+      "note": "Spare dark jacket+pants+boots look, no cap. Not wired into any band."
+    }
+  ],
+
+  "fashionShowExtras": [
+    {
+      "avatar": "avatar-doctor-who.png",
+      "label": "Shhhhh! Dr. Who",
+      "note": "Runway-only cameo - never selected by getOutfitSelection() for real weather, only appears in the fashion show lineup."
+    }
+  ]
+}

@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weather</title>
+<style>
+  :root {
+    --bg: #eef3f8; --card: #fff; --text: #1a2433; --muted: #6b7a90;
+    --accent: #2f6fed; --border: #d5dde8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1520; --card: #182131; --text: #e8eef7; --muted: #8b9ab0; --accent: #5b92ff; --border: #2a364b; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px;
+    background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { width: 100%; max-width: 420px; }
+  form { display: flex; gap: 8px; margin-bottom: 12px; }
+  input {
+    flex: 1; min-width: 0; padding: 12px 14px; font-size: 1rem;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--card); color: var(--text);
+  }
+  button {
+    padding: 12px 16px; font-size: 1rem; border: 0; border-radius: 10px;
+    background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button.secondary { background: var(--card); color: var(--accent); border: 1px solid var(--border); }
+  input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 28px 24px; text-align: center; margin-top: 12px;
+  }
+  .place { font-size: 1.1rem; color: var(--muted); margin: 0; }
+  .icon { font-size: 4rem; line-height: 1.2; margin: 8px 0 0; }
+  .temp { font-size: 3.5rem; font-weight: 600; margin: 0; }
+  .desc { font-size: 1.15rem; margin: 4px 0 20px; }
+  dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
+  dt { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  dd { margin: 2px 0 0; font-weight: 600; }
+  #status { text-align: center; color: var(--muted); min-height: 1.4em; margin: 8px 0 0; }
+  #status.error { color: #d64545; }
+  #dayStepper { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px; }
+  #dayStepper[hidden] { display: none; }
+  #dayStepper button {
+    background: var(--card); color: var(--accent); border: 1px solid var(--border);
+    width: 40px; height: 40px; padding: 0; font-size: 1.3rem; line-height: 1; border-radius: 999px;
+  }
+  #dayStepper button:disabled { opacity: .3; cursor: default; }
+  #dayLabel { font-weight: 600; }
+  #avatarStage { position: relative; display: grid; place-items: center; }
+  #avatarStage::before {
+    content: ""; position: absolute; width: 70%; aspect-ratio: 1; border-radius: 50%;
+    background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+    opacity: 0; filter: blur(20px); transition: opacity .3s;
+  }
+  #avatarStage.loading::before { opacity: .5; animation: avatarGlow 1.4s ease-in-out infinite; }
+  #outfitAvatar { display: block; width: min(280px, 80%); height: auto; margin: 12px auto; position: relative; transform-origin: bottom center; }
+  /* Idle sway keeps every avatar feeling alive rather than a static photo, whenever it isn't already doing the (busier) loading bob */
+  #outfitAvatar:not(.loading) { animation: avatarIdle 3.4s ease-in-out infinite; }
+  #outfitAvatar.loading { animation: avatarBob 1.6s ease-in-out infinite; }
+  @keyframes avatarGlow { 0%, 100% { transform: scale(.9); opacity: .3; } 50% { transform: scale(1.1); opacity: .6; } }
+  @keyframes avatarBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  @keyframes avatarIdle { 0%, 100% { transform: translateY(0) rotate(-.6deg); } 50% { transform: translateY(-4px) rotate(.6deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    #avatarStage.loading::before, #outfitAvatar.loading, #outfitAvatar { animation: none; }
+  }
+  #outfitText { margin: 0 0 14px; }
+  #outfitButtons { display: flex; flex-direction: column; gap: 8px; }
+  #outfitButtons[hidden] { display: none; }
+  #feel80sBtn { width: 100%; }
+  #feel80sBtn[aria-pressed="true"] { background: #7b2ff7; }
+  #fashionShowBtn { width: 100%; background: linear-gradient(135deg, #ff5da2, #7b2ff7); }
+  footer { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 16px; }
+  footer a { color: inherit; }
+
+  /* Fashion show takes over the whole #outfit card (swaps with
+     #outfitNormal) - not a full-screen takeover, so the weather card
+     above and everything outside #outfit stays exactly as it was. */
+  #outfit { position: relative; }
+  #fashionShow { display: flex; flex-direction: column; align-items: center; }
+  #fashionShow[hidden] { display: none; }
+  #fashionShowStage { position: relative; width: 100%; aspect-ratio: 3 / 4; display: grid; place-items: center; overflow: hidden; margin: 0 auto; }
+  #fashionShowEntrance { opacity: 0; width: 100%; display: grid; place-items: center; }
+  #fashionShowEntrance.walk-in { animation: fashionWalkIn .6s cubic-bezier(.2,.8,.2,1) forwards; }
+  /* 84% keeps a ~2:3 avatar image within the 3:4 stage box with headroom
+     to spare - much wider than that and the feet get clipped by the
+     stage's overflow:hidden (needed to contain the walk-in slide-in). */
+  #fashionShowAvatar { width: 84%; height: auto; transform-origin: bottom center; animation: avatarIdle 2.6s ease-in-out infinite; }
+  #runwayFloor { position: absolute; bottom: 0; left: 0; right: 0; height: 30%; background: linear-gradient(to top, var(--accent), transparent); opacity: .15; pointer-events: none; }
+  #fashionShowLabel { margin: 10px 0 0; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: .9rem; color: var(--muted); }
+  #fashionShowClose {
+    position: absolute; top: 16px; right: 16px; z-index: 1; width: 40px; height: 40px; padding: 0;
+    border-radius: 999px; background: var(--card); color: var(--accent); border: 1px solid var(--border); font-size: 1.1rem; line-height: 1;
+  }
+  @keyframes fashionWalkIn {
+    0% { opacity: 0; transform: translateX(70px) scale(.92); }
+    60% { opacity: 1; }
+    100% { opacity: 1; transform: translateX(0) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #fashionShowEntrance.walk-in, #fashionShowAvatar { animation: none; opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <form id="search">
+    <input id="query" type="text" placeholder="Zip code or city" aria-label="Zip code or city" autocomplete="off">
+    <button type="submit">Go</button>
+  </form>
+  <button id="locate" class="secondary" type="button" style="width:100%">📍 Use my location</button>
+  <p id="status" role="status"></p>
+
+  <section id="result" class="card" hidden>
+    <p class="place" id="place"></p>
+    <p class="icon" id="icon"></p>
+    <p class="temp" id="temp"></p>
+    <p class="desc" id="desc"></p>
+    <dl>
+      <div><dt>Feels like</dt><dd id="feels"></dd></div>
+      <div><dt>Humidity</dt><dd id="humidity"></dd></div>
+      <div><dt>Wind</dt><dd id="wind"></dd></div>
+    </dl>
+  </section>
+
+  <section id="outfit" class="card" hidden>
+    <div id="outfitNormal">
+      <div id="dayStepper">
+        <button id="dayPrev" type="button" aria-label="Previous day">‹</button>
+        <span id="dayLabel"></span>
+        <button id="dayNext" type="button" aria-label="Next day">›</button>
+      </div>
+      <div id="avatarStage">
+        <img id="outfitAvatar" alt="">
+      </div>
+      <p id="outfitText"></p>
+
+      <div id="outfitButtons">
+        <button id="feel80sBtn" type="button" aria-pressed="false">I feel 80s today ✨</button>
+        <button id="fashionShowBtn" type="button">💃 Fashion Show</button>
+      </div>
+    </div>
+
+    <div id="fashionShow" hidden>
+      <div id="fashionShowStage">
+        <div id="fashionShowEntrance">
+          <img id="fashionShowAvatar" alt="">
+        </div>
+        <div id="runwayFloor"></div>
+      </div>
+      <p id="fashionShowLabel"></p>
+      <button id="fashionShowClose" type="button" aria-label="Stop fashion show">✕</button>
+      <audio id="fashionShowAudio" src="sounds/fashion-show.mp3" preload="none" loop></audio>
+    </div>
+  </section>
+
+  <footer>
+    Weather data by <a href="https://open-meteo.com/">Open-Meteo.com</a>
+  </footer>
+</main>
+
+<script>
+  // WMO weather codes -> [emoji, description]
+  const CODES = {
+    0: ["☀️", "Clear sky"], 1: ["🌤️", "Mainly clear"], 2: ["⛅", "Partly cloudy"], 3: ["☁️", "Overcast"],
+    45: ["🌫️", "Fog"], 48: ["🌫️", "Rime fog"],
+    51: ["🌦️", "Light drizzle"], 53: ["🌦️", "Drizzle"], 55: ["🌦️", "Heavy drizzle"],
+    56: ["🌧️", "Freezing drizzle"], 57: ["🌧️", "Freezing drizzle"],
+    61: ["🌧️", "Light rain"], 63: ["🌧️", "Rain"], 65: ["🌧️", "Heavy rain"],
+    66: ["🌧️", "Freezing rain"], 67: ["🌧️", "Freezing rain"],
+    71: ["🌨️", "Light snow"], 73: ["🌨️", "Snow"], 75: ["❄️", "Heavy snow"], 77: ["🌨️", "Snow grains"],
+    80: ["🌦️", "Light showers"], 81: ["🌧️", "Showers"], 82: ["⛈️", "Violent showers"],
+    85: ["🌨️", "Snow showers"], 86: ["🌨️", "Heavy snow showers"],
+    95: ["⛈️", "Thunderstorm"], 96: ["⛈️", "Thunderstorm with hail"], 99: ["⛈️", "Thunderstorm with hail"]
+  };
+
+  const $ = id => document.getElementById(id);
+  const statusEl = $("status");
+
+  // --- Outfit suggester -----------------------------------------------
+  // Rules live in avatars/outfit-guide.json (temp bands, rain/wind avatar
+  // overrides, special days) so they're easy to find and tweak without
+  // touching app code. Selection priority, highest first:
+  //   1. "I feel 80s today" button (explicit user request beats everything)
+  //   2. Halloween (10/31, automatic)
+  //   3. Rain (weather_code is rain/drizzle/showers/thunderstorm)
+  //   4. Wind (wind_speed_10m >= WINDY_MPH)
+  //   5. The plain temp-band avatar
+  // Freezing-rain and snow codes are deliberately excluded from "rain" —
+  // at those temps the band's own cold-weather gear already covers it.
+  const WINDY_MPH = 15;
+  const RAIN_CODES = new Set([51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99]);
+
+  let outfitGuide = null;
+  let lastWeather = null; // { feelsLikeF, weatherCode, windMph, dateStr }
+  let feel80s = false;
+  let fashionShowActive = false; // so renderOutfit() (e.g. from scrubbing the day stepper mid-show) doesn't pop the buttons back over the runway
+
+  // Placeholder shown the instant a lookup starts (geocoding, location,
+  // weather — whichever runs first), so there's never a bare gap before
+  // the real avatar shows up. Hardcoded rather than read from
+  // outfit-guide.json since it has to work before that file has loaded.
+  const MYSTERY_AVATAR = "avatar-mystery.png";
+  // Keeps the "figuring it out" moment on screen a beat even when the
+  // network is fast, so the loading animation actually gets seen.
+  const MIN_LOADING_MS = 900;
+  let loadingStartedAt = 0;
+
+  function showOutfitLoading() {
+    loadingStartedAt = Date.now();
+    $("outfit").hidden = false;
+    $("avatarStage").classList.add("loading");
+    $("outfitAvatar").classList.add("loading");
+    $("outfitAvatar").src = `avatars/${MYSTERY_AVATAR}`;
+    $("outfitAvatar").alt = "Figuring out what to wear";
+    $("outfitText").textContent = "Checking the sky…";
+    $("dayStepper").hidden = true;
+    $("outfitButtons").hidden = true;
+  }
+
+  function hideOutfitLoading() {
+    $("outfit").hidden = true;
+    $("avatarStage").classList.remove("loading");
+    $("outfitAvatar").classList.remove("loading");
+  }
+
+  // Resolves once both the real data is ready AND the mystery avatar has
+  // been visible for at least MIN_LOADING_MS.
+  async function waitOutMinLoadingTime() {
+    const elapsed = Date.now() - loadingStartedAt;
+    if (elapsed < MIN_LOADING_MS) {
+      await new Promise(r => setTimeout(r, MIN_LOADING_MS - elapsed));
+    }
+  }
+  const outfitGuideReady = getJSON("avatars/outfit-guide.json")
+    .then(g => { outfitGuide = g; })
+    .catch(err => console.error("Couldn't load outfit guide:", err));
+
+  function findBand(feelsLikeF) {
+    return outfitGuide.bands.find(b => {
+      const min = b.tempMinF === null ? -Infinity : b.tempMinF;
+      // Bands are defined in whole degrees (e.g. 80-89), but feels-like is
+      // a float, so treat max as inclusive of that whole degree (< max+1),
+      // not just the exact integer, or fractional values between two
+      // bands' integer boundaries match nothing.
+      const max = b.tempMaxF === null ? Infinity : b.tempMaxF + 1;
+      return feelsLikeF >= min && feelsLikeF < max;
+    });
+  }
+
+  // Rain/wind variants only cover two coarse buckets (cold/warm), not
+  // every band — the coldest bands have no override because their own
+  // gear (parka, gloves, hood) already implies "windy and possibly wet".
+  function pickVariant(variants, bandId) {
+    if (variants.cold.status === "ready" && variants.cold.appliesToBandIds.includes(bandId)) return variants.cold;
+    if (variants.warm.status === "ready" && variants.warm.appliesToBandIds.includes(bandId)) return variants.warm;
+    return null;
+  }
+
+  // Checks the date being VIEWED (which may be a scrubbed past/future day
+  // on the timeline), not necessarily today's real date — so scrubbing to
+  // 10/31 shows the costume even if it isn't actually Halloween right now.
+  function isHalloween(dateStr) {
+    const [, month, day] = dateStr.split("-").map(Number);
+    return month === 10 && day === 31;
+  }
+
+  function getOutfitSelection() {
+    if (!outfitGuide || !lastWeather) return null;
+
+    if (feel80s) {
+      const s = outfitGuide.specialDays.find(s => s.id === "retro-80s");
+      return { avatar: s.avatar, sentence: s.outfit };
+    }
+    if (isHalloween(lastWeather.dateStr)) {
+      const s = outfitGuide.specialDays.find(s => s.id === "halloween");
+      return { avatar: s.avatar, sentence: s.outfit };
+    }
+
+    const band = findBand(lastWeather.feelsLikeF);
+    if (!band) return null;
+
+    const isRainy = RAIN_CODES.has(lastWeather.weatherCode);
+    const isWindy = lastWeather.windMph >= WINDY_MPH;
+
+    let avatar = band.avatar;
+    const rain = isRainy ? pickVariant(outfitGuide.rainVariants, band.id) : null;
+    if (rain) {
+      avatar = rain.avatar;
+    } else {
+      const wind = isWindy ? pickVariant(outfitGuide.windVariants, band.id) : null;
+      if (wind) avatar = wind.avatar;
+    }
+
+    let sentence = band.outfit;
+    if (isWindy) sentence += " — it's windy, so add a windbreaker layer.";
+
+    return { avatar, sentence };
+  }
+
+  function renderOutfit() {
+    const sel = getOutfitSelection();
+    if (!sel) return;
+    $("avatarStage").classList.remove("loading");
+    $("outfitAvatar").classList.remove("loading");
+    $("outfitAvatar").src = `avatars/${sel.avatar}`;
+    $("outfitText").textContent = sel.sentence;
+    $("outfit").hidden = false;
+    $("dayStepper").hidden = false;
+    $("outfitButtons").hidden = false;
+    $("outfitNormal").hidden = fashionShowActive;
+    $("feel80sBtn").setAttribute("aria-pressed", String(feel80s));
+    $("feel80sBtn").textContent = feel80s ? "Back to today's weather" : "I feel 80s today ✨";
+  }
+
+  $("feel80sBtn").addEventListener("click", () => {
+    feel80s = !feel80s;
+    renderOutfit();
+  });
+  // --- End outfit suggester ---------------------------------------------
+
+  // --- Fashion show ------------------------------------------------------
+  // Runway reel through every avatar in the wardrobe, deduped by filename
+  // (built from outfit-guide.json rather than hardcoded so it stays in
+  // sync automatically as avatars are added/removed there).
+  const FASHION_SHOW_INTERVAL_MS = 2500;
+  let fashionShowLooks = [];
+  let fashionShowIndex = 0;
+  let fashionShowTimer = null;
+
+  function buildFashionShowLooks() {
+    const looks = [];
+    const seen = new Set();
+    const add = (avatar, label) => {
+      if (seen.has(avatar)) return;
+      seen.add(avatar);
+      looks.push({ avatar, label });
+    };
+
+    outfitGuide.bands.forEach(b => {
+      const label = b.sharedAvatarWith
+        ? `${b.label} / ${outfitGuide.bands.find(x => x.id === b.sharedAvatarWith).label}`
+        : b.label;
+      add(b.avatar, label);
+    });
+    add(outfitGuide.rainVariants.cold.avatar, "Cold + Rain");
+    add(outfitGuide.rainVariants.warm.avatar, "Warm + Rain");
+    add(outfitGuide.windVariants.cold.avatar, "Cold + Windy");
+    add(outfitGuide.windVariants.warm.avatar, "Warm + Windy");
+    outfitGuide.specialDays.forEach(s => add(s.avatar, s.label));
+    outfitGuide.fashionShowExtras.forEach(e => add(e.avatar, e.label));
+    // Deliberately excludes outfitGuide.unused (spare near-duplicate looks)
+    // and outfitGuide.loading (the mystery placeholder) - neither is a real
+    // "look" worth walking the runway for.
+
+    return looks;
+  }
+
+  function showFashionShowLook(index) {
+    const look = fashionShowLooks[index];
+    $("fashionShowAvatar").src = `avatars/${look.avatar}`;
+    $("fashionShowAvatar").alt = look.label;
+    $("fashionShowLabel").textContent = look.label;
+    // Re-trigger the walk-in animation by removing and re-adding the class
+    const entrance = $("fashionShowEntrance");
+    entrance.classList.remove("walk-in");
+    void entrance.offsetWidth; // force reflow so the animation restarts
+    entrance.classList.add("walk-in");
+  }
+
+  function advanceFashionShow() {
+    fashionShowIndex = (fashionShowIndex + 1) % fashionShowLooks.length;
+    showFashionShowLook(fashionShowIndex);
+  }
+
+  function startFashionShow() {
+    if (!outfitGuide) return;
+    fashionShowActive = true;
+    fashionShowLooks = buildFashionShowLooks();
+    fashionShowIndex = 0;
+    $("outfitNormal").hidden = true;
+    $("fashionShow").hidden = false;
+    showFashionShowLook(0);
+    const audio = $("fashionShowAudio");
+    audio.currentTime = 0;
+    audio.play().catch(() => {}); // ignore autoplay rejection; show still runs silently
+    fashionShowTimer = setInterval(advanceFashionShow, FASHION_SHOW_INTERVAL_MS);
+  }
+
+  function stopFashionShow() {
+    fashionShowActive = false;
+    clearInterval(fashionShowTimer);
+    fashionShowTimer = null;
+    $("fashionShow").hidden = true;
+    $("outfitNormal").hidden = false;
+    const audio = $("fashionShowAudio");
+    audio.pause();
+    audio.currentTime = 0;
+  }
+
+  $("fashionShowBtn").addEventListener("click", startFashionShow);
+  $("fashionShowClose").addEventListener("click", stopFashionShow);
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && !$("fashionShow").hidden) stopFashionShow();
+  });
+  // --- End fashion show ---------------------------------------------------
+
+  function setStatus(msg, isError = false) {
+    statusEl.textContent = msg;
+    statusEl.classList.toggle("error", isError);
+  }
+
+  async function getJSON(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    return res.json();
+  }
+
+  // Turn a zip or city name into { lat, lon, name }
+  async function geocode(q) {
+    if (/^\d{5}$/.test(q)) {
+      // Open-Meteo's geocoder doesn't handle zips, so use zippopotam.us for US zips
+      const res = await fetch(`https://api.zippopotam.us/us/${q}`);
+      if (!res.ok) throw new Error(`Zip code ${q} not found.`);
+      const z = (await res.json()).places[0];
+      return { lat: +z.latitude, lon: +z.longitude, name: `${z["place name"]}, ${z["state abbreviation"]}` };
+    }
+    // "Austin, TX" -> search "Austin"; Open-Meteo matches on the name only
+    const name = q.split(",")[0].trim();
+    const data = await getJSON(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1`
+    );
+    if (!data.results) throw new Error(`Couldn't find "${q}".`);
+    const r = data.results[0];
+    return { lat: r.latitude, lon: r.longitude, name: [r.name, r.admin1, r.country_code].filter(Boolean).join(", ") };
+  }
+
+  // Turn { lat, lon } from the browser's geolocation API into a real place
+  // name (e.g. "Austin, TX") rather than just labeling it "Your location" -
+  // BigDataCloud's reverse-geocode-client endpoint is free and keyless.
+  async function reverseGeocode(lat, lon) {
+    const data = await getJSON(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`
+    );
+    const state = data.principalSubdivisionCode?.includes("-")
+      ? data.principalSubdivisionCode.split("-")[1]
+      : data.principalSubdivision;
+    return [data.city || data.locality, state].filter(Boolean).join(", ");
+  }
+
+  const PAST_DAYS = 7;
+
+  // One weather summary per day in the fetched window (7 past + today + 7
+  // forecast). Today uses the precise "current" block; every other day only
+  // has daily aggregates, so its feels-like is the max/min average and its
+  // wind is the day's peak — close enough for picking an outfit.
+  let daySummaries = [];
+  let selectedDayIndex = PAST_DAYS;
+
+  function buildDaySummaries(data) {
+    const d = data.daily;
+    return d.time.map((date, i) => {
+      if (i === PAST_DAYS) {
+        const c = data.current;
+        return { date, weatherCode: c.weather_code, tempF: c.temperature_2m, feelsLikeF: c.apparent_temperature, humidity: c.relative_humidity_2m, windMph: c.wind_speed_10m };
+      }
+      return {
+        date,
+        weatherCode: d.weather_code[i],
+        tempF: d.temperature_2m_max[i],
+        feelsLikeF: (d.apparent_temperature_max[i] + d.apparent_temperature_min[i]) / 2,
+        humidity: d.relative_humidity_2m_mean[i],
+        windMph: d.wind_speed_10m_max[i]
+      };
+    });
+  }
+
+  function dayLabelFor(index) {
+    if (index === PAST_DAYS) return "Today";
+    if (index === PAST_DAYS - 1) return "Yesterday";
+    if (index === PAST_DAYS + 1) return "Tomorrow";
+    // Noon avoids the UTC-midnight off-by-one-day bug when parsing "YYYY-MM-DD"
+    const date = new Date(daySummaries[index].date + "T12:00:00");
+    return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  }
+
+  function renderForDay(index) {
+    selectedDayIndex = index;
+    const day = daySummaries[index];
+    const [icon, desc] = CODES[day.weatherCode] || ["🌡️", "Unknown"];
+    $("icon").textContent = icon;
+    $("temp").textContent = `${Math.round(day.tempF)}°F`;
+    $("desc").textContent = desc;
+    $("feels").textContent = `${Math.round(day.feelsLikeF)}°F`;
+    $("humidity").textContent = `${Math.round(day.humidity)}%`;
+    $("wind").textContent = `${Math.round(day.windMph)} mph`;
+
+    $("dayLabel").textContent = dayLabelFor(index);
+    $("dayPrev").disabled = index === 0;
+    $("dayNext").disabled = index === daySummaries.length - 1;
+
+    lastWeather = { feelsLikeF: day.feelsLikeF, weatherCode: day.weatherCode, windMph: day.windMph, dateStr: day.date };
+    renderOutfit();
+  }
+
+  $("dayPrev").addEventListener("click", () => { if (selectedDayIndex > 0) renderForDay(selectedDayIndex - 1); });
+  $("dayNext").addEventListener("click", () => { if (selectedDayIndex < daySummaries.length - 1) renderForDay(selectedDayIndex + 1); });
+
+  async function showWeather({ lat, lon, name }) {
+    setStatus("Loading weather…");
+    try {
+      const data = await getJSON(
+        "https://api.open-meteo.com/v1/forecast" +
+        `?latitude=${lat}&longitude=${lon}` +
+        "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m" +
+        "&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,relative_humidity_2m_mean,wind_speed_10m_max" +
+        `&timezone=auto&past_days=${PAST_DAYS}&forecast_days=7` +
+        "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch"
+      );
+      $("place").textContent = name;
+      $("result").hidden = false;
+      setStatus("");
+
+      daySummaries = buildDaySummaries(data);
+      await outfitGuideReady;
+      await waitOutMinLoadingTime();
+      renderForDay(PAST_DAYS);
+    } catch (err) {
+      hideOutfitLoading();
+      setStatus(err.message, true);
+    }
+  }
+
+  $("search").addEventListener("submit", async e => {
+    e.preventDefault();
+    const q = $("query").value.trim();
+    if (!q) return;
+    setStatus("Searching…");
+    showOutfitLoading();
+    try {
+      await showWeather(await geocode(q));
+    } catch (err) {
+      $("result").hidden = true;
+      hideOutfitLoading();
+      setStatus(err.message, true);
+    }
+  });
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      setStatus("Geolocation isn't supported. Type a zip or city instead.", true);
+      return;
+    }
+    setStatus("Getting your location…");
+    showOutfitLoading();
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        let name = "Your location";
+        try {
+          const place = await reverseGeocode(lat, lon);
+          if (place) name = `${place} (your location)`;
+        } catch {
+          // Reverse geocoding is a nice-to-have; fall back to the generic label rather than blocking the weather lookup.
+        }
+        showWeather({ lat, lon, name });
+      },
+      err => {
+        hideOutfitLoading();
+        setStatus(
+          err.code === err.PERMISSION_DENIED
+            ? "Location access denied. Type a zip or city instead."
+            : "Couldn't get your location. Type a zip or city instead.", true);
+      },
+      { timeout: 10000 }
+    );
+  }
+
+  $("locate").addEventListener("click", useMyLocation);
+  useMyLocation(); // try on load
+</script>
+</body>
+</html>
