@@ -1,0 +1,38 @@
+commit b5dde69d0dcecfa45d98233103bb5c07559e19e8
+Author: Eric Freeman <eric.freeman@austin.utexas.edu>
+Date:   2026-10-12 14:51:52 -0500
+
+Add planning docs (spec, plan, research) and update brief
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+----------------------------------------
+commit c282c1de3abfc18381e4989192a0dc446077bbaf
+Author: Eric Freeman <erictfree@mac.com>
+Date:   2026-10-12 14:30:44 -0500
+
+Rename public_html to docs
+
+----------------------------------------
+commit cab224665deee8bc1b1bf74428e01ec0d012a319
+Author: Eric Freeman <erictfree@mac.com>
+Date:   2026-10-12 14:22:34 -0500
+
+Add git-log export and public_html deploy copy of the site
+
+----------------------------------------
+commit 1190a9d15233e88c9243325c3719865555e7b428
+Author: Eric Freeman <erictfree@mac.com>
+Date:   2026-09-22 10:18:24 -0500
+
+What-to-wear weather app: live conditions, character avatars, timeline, fashion show
+
+Single-file index.html pulling live weather from Open-Meteo, mapping feels-like
+temp + precipitation + wind to an illustrated outfit recommendation via
+avatars/outfit-guide.json. Includes a day-stepper timeline (past 7 / today /
+forecast), rain and wind avatar variants, Halloween and 80s easter eggs, and a
+runway "Fashion Show" mode that cycles the full wardrobe to music.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+
+----------------------------------------
